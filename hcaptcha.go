@@ -17,6 +17,8 @@ import (
 
 // Options contains options for both hcaptcha.Captcha middleware.
 type Options struct {
+	// Client the HTTP client to make requests. The default is http.DefaultClient.
+	Client *http.Client
 	// Secret is the secret key to check user captcha codes. This field is required.
 	Secret string
 }
@@ -24,12 +26,17 @@ type Options struct {
 // Captcha returns a middleware handler that injects hcaptcha.HCaptcha into the
 // request context, which is used for verifying hCaptcha requests.
 func Captcha(opts Options) flamego.Handler {
+	if opts.Client == nil {
+		opts.Client = http.DefaultClient
+	}
+
 	if opts.Secret == "" {
 		panic("hcaptcha: empty secret")
 	}
 
 	return flamego.ContextInvoker(func(c flamego.Context) {
 		hcaptcha := &hCaptcha{
+			client: opts.Client,
 			secret: opts.Secret,
 		}
 		c.MapTo(hcaptcha, (*HCaptcha)(nil))
@@ -62,6 +69,7 @@ type Response struct {
 var _ HCaptcha = (*hCaptcha)(nil)
 
 type hCaptcha struct {
+	client *http.Client
 	secret string
 }
 
@@ -78,7 +86,7 @@ func (h *hCaptcha) Verify(token string, remoteIP ...string) (*Response, error) {
 		data.Add("remoteip", remoteIP[0])
 	}
 
-	resp, err := http.PostForm("https://hcaptcha.com/siteverify", data)
+	resp, err := h.client.PostForm("https://hcaptcha.com/siteverify", data)
 	if err != nil {
 		return nil, errors.Wrap(err, "request hCaptcha server")
 	}
