@@ -40,7 +40,7 @@ func TestCaptcha(t *testing.T) {
 			wantRemoteIP: "",
 		},
 		{
-			name:         "normal",
+			name:         "remoteip",
 			wantSecret:   "test-secret",
 			wantToken:    "valid-token",
 			wantRemoteIP: "127.0.0.1",
