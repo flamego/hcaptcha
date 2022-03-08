@@ -15,7 +15,65 @@ The minimum requirement of Go is **1.16**.
 
 ## Getting started
 
-TBD
+```html
+<!-- templates/home.tmpl -->
+<html>
+<head>
+  <script src="https://hcaptcha.com/1/api.js"></script>
+</head>
+<body>
+  <form method="POST">
+    <div class="h-captcha" data-sitekey="{{.SiteKey}}"></div>
+    <input type="submit" name="button" value="Submit">
+  </form>
+</body>
+</html>
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/flamego/flamego"
+	"github.com/flamego/hcaptcha"
+	"github.com/flamego/template"
+)
+
+func main() {
+	f := flamego.Classic()
+	f.Use(template.Templater())
+	f.Use(hcaptcha.Captcha(
+		hcaptcha.Options{
+			Secret: "<SECRET>",
+		},
+	))
+	f.Get("/", func(t template.Template, data template.Data) {
+		data["SiteKey"] = "<SITE KEY>"
+		t.HTML(http.StatusOK, "home")
+	})
+
+	f.Post("/", func(w http.ResponseWriter, r *http.Request, h hcaptcha.HCaptcha) {
+		token := r.PostFormValue("h-captcha-response")
+		resp, err := h.Verify(token)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		} else if !resp.Success {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(fmt.Sprintf("Verification failed, error codes %v", resp.ErrorCodes)))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Verified!"))
+	})
+
+	f.Run()
+}
+```
 
 ## Getting help
 
